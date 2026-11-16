@@ -19,36 +19,43 @@ class FixedWindow {
     }
 
     consume(clientId) {
-        if (typeof clientId !== "string" || clientId.trim() === "") {
+        if (
+            typeof clientId !== "string" ||
+            clientId.trim() === ""
+        ) {
             throw new Error("A valid clientId is required");
         }
 
         const currentTime = Date.now();
 
+        // Identify the current fixed time window
         const windowId = Math.floor(
             currentTime / this.windowMs
         );
 
+        // Generate a unique key for this client and window
         const key = `${clientId}:window:${windowId}`;
 
-        const currentCount = this.store.get(key);
+        // Atomically check the limit and consume a request
+        const result = this.store.consume(
+            key,
+            this.maxRequests
+        );
 
-        if (currentCount >= this.maxRequests) {
-            return {
-                allowed: false,
-                limit: this.maxRequests,
-                remaining: 0,
-                resetAt: (windowId + 1) * this.windowMs
-            };
-        }
+        // Calculate remaining requests
+        const remaining = Math.max(
+            0,
+            this.maxRequests - result.count
+        );
 
-        const updatedCount = this.store.increment(key);
+        // Calculate when the current window resets
+        const resetAt = (windowId + 1) * this.windowMs;
 
         return {
-            allowed: true,
+            allowed: result.allowed,
             limit: this.maxRequests,
-            remaining: this.maxRequests - updatedCount,
-            resetAt: (windowId + 1) * this.windowMs
+            remaining,
+            resetAt
         };
     }
 }

@@ -36,3 +36,26 @@ test("should maintain separate counters for different clients", () => {
     assert.equal(store.get("user:101"), 2);
     assert.equal(store.get("user:102"), 1);
 });
+
+test("should atomically enforce the maximum request limit", () => {
+    const store = new MemoryStore();
+
+    const first = store.consume("user:101", 2);
+    const second = store.consume("user:101", 2);
+    const third = store.consume("user:101", 2);
+
+    assert.deepEqual(first, {
+        allowed: true,
+        count: 1
+    });
+
+    assert.deepEqual(second, {
+        allowed: true,
+        count: 2
+    });
+
+    assert.deepEqual(third, {
+        allowed: false,
+        count: 2
+    });
+});

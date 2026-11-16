@@ -20,6 +20,27 @@ class MemoryStore {
 
         return updatedCount;
     }
+
+    consume(key, maxRequests) {
+        const currentCount = this.get(key);
+
+        if (currentCount >= maxRequests) {
+            return {
+                allowed: false,
+                count: currentCount
+            };
+        }
+
+        const updatedCount = currentCount + 1;
+
+        this.set(key, updatedCount);
+
+        return {
+            allowed: true,
+            count: updatedCount
+        };
+    }
+
 }
 
 export default MemoryStore;
