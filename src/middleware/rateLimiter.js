@@ -1,23 +1,21 @@
 
 import MemoryStore from "../stores/memoryStore.js";
-import FixedWindow from "../algorithms/fixedWindow.js";
+import createAlgorithm from "../algorithms/createAlgorithm.js";
 import identifyClient from "../identity/clientIdentifier.js";
 
 function rateLimiter({
-    windowMs = 60000,
-    maxRequests = 100,
+    algorithm = "fixed-window",
+    options = {},
     keyStrategy = "user-or-ip",
     store = new MemoryStore()
 } = {}) {
-
-    const algorithm = new FixedWindow({
+    const limiter = createAlgorithm({
+        algorithm,
         store,
-        windowMs,
-        maxRequests
+        options
     });
 
     return function (req, res, next) {
-
         let clientId;
 
         try {
@@ -29,7 +27,7 @@ function rateLimiter({
         let result;
 
         try {
-            result = algorithm.consume(clientId);
+            result = limiter.consume(clientId);
         } catch (error) {
             return next(error);
         }
@@ -43,17 +41,27 @@ function rateLimiter({
         });
 
         if (!result.allowed) {
+            const retryAfterMs =
+                result.retryAfterMs ??
+                Math.max(0, result.resetAt - Date.now());
+
+            const retryAfterSeconds = Math.ceil(
+                retryAfterMs / 1000
+            );
+
+            res.set(
+                "Retry-After",
+                String(retryAfterSeconds)
+            );
+
             return res.status(429).json({
                 error: "Too Many Requests",
                 message: "You have exceeded the request limit.",
-                retryAfter: Math.max(
-                    0,
-                    Math.ceil((result.resetAt - Date.now()) / 1000)
-                )
+                retryAfter: retryAfterSeconds
             });
         }
 
-        next();
+        return next();
     };
 }
 
