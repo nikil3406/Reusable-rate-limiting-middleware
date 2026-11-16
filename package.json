@@ -1,0 +1,21 @@
+
+{
+  "name": "sentinel-rate-limiter",
+  "version": "1.0.0",
+  "description": "Reusable rate limiting middleware for Node.js applications",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "rate-limiter",
+    "express",
+    "middleware",
+    "redis"
+  ],
+  "license": "MIT"
+}
