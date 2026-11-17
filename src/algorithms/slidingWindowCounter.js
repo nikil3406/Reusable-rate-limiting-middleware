@@ -1,3 +1,4 @@
+import slidingWindowCounterOperation from "../stores/operations/slidingWindowCounter.operation.js";
 
 class SlidingWindowCounter {
     constructor({
@@ -38,20 +39,9 @@ class SlidingWindowCounter {
 
         const currentTime = this.now();
 
-        // Identify the current fixed window.
         const windowId = Math.floor(
             currentTime / this.windowMs
         );
-
-        const windowStart = windowId * this.windowMs;
-
-        // Calculate elapsed time in the current window.
-        const elapsedTime = currentTime - windowStart;
-
-        // Calculate the proportion of the previous window
-        // that overlaps with the rolling window.
-        const previousWindowWeight =
-            (this.windowMs - elapsedTime) / this.windowMs;
 
         const currentKey =
             `${clientId}:sliding-counter:${windowId}`;
@@ -59,65 +49,13 @@ class SlidingWindowCounter {
         const previousKey =
             `${clientId}:sliding-counter:${windowId - 1}`;
 
-        const currentCount = this.store.get(currentKey);
-
-        const previousCount = this.store.get(previousKey);
-
-        // Estimate requests in the rolling window.
-        const estimatedCount =
-            previousCount * previousWindowWeight +
-            currentCount;
-
-        const allowed = estimatedCount < this.maxRequests;
-
-        // Only increment the current counter when allowed.
-        let updatedCount = currentCount;
-
-        if (allowed) {
-            updatedCount++;
-            this.store.set(currentKey, updatedCount);
-        }
-
-        // Calculate the updated estimated count.
-        const updatedEstimatedCount =
-            previousCount * previousWindowWeight +
-            updatedCount;
-
-        const remaining = Math.max(
-            0,
-            Math.floor(
-                this.maxRequests - updatedEstimatedCount
-            )
-        );
-
-        // Calculate the earliest approximate retry time.
-        let retryAfterMs = 0;
-
-        if (!allowed) {
-            const requiredPreviousWeight =
-                this.maxRequests - currentCount;
-
-            const requiredElapsedTime =
-                this.windowMs *
-                (1 - requiredPreviousWeight / previousCount);
-
-            const nextAllowedTime =
-                windowStart + requiredElapsedTime;
-
-            retryAfterMs = Math.max(
-                0,
-                Math.ceil(nextAllowedTime - currentTime)
-            );
-        }
-
-        return {
-            allowed,
-            limit: this.maxRequests,
-            remaining,
-            estimatedCount: updatedEstimatedCount,
-            retryAfterMs,
-            resetAt: windowStart + this.windowMs
-        };
+        return slidingWindowCounterOperation(this.store, {
+            currentKey,
+            previousKey,
+            currentTime,
+            windowMs: this.windowMs,
+            maxRequests: this.maxRequests
+        });
     }
 }
 

@@ -1,4 +1,6 @@
 
+import tokenBucketOperation from "../stores/operations/tokenBucket.operation.js";
+
 class TokenBucket {
     constructor({
         store,
@@ -41,67 +43,22 @@ class TokenBucket {
             cost <= 0 ||
             cost > this.capacity
         ) {
-            throw new Error("cost must be positive and no greater than capacity");
+            throw new Error(
+                "cost must be positive and no greater than capacity"
+            );
         }
 
         const currentTime = this.now();
+
         const key = `${clientId}:token-bucket`;
 
-        let state = this.store.get(key);
-
-        // Initialize a new client's bucket as full.
-        if (!state || typeof state !== "object") {
-            state = {
-                tokens: this.capacity,
-                lastRefillTime: currentTime
-            };
-        }
-
-        // Calculate elapsed time since the last refill.
-        const elapsedTime = Math.max(
-            0,
-            currentTime - state.lastRefillTime
-        );
-
-        // Refill tokens based on elapsed time.
-        const tokensToAdd =
-            (elapsedTime / 1000) * this.refillRate;
-
-        const availableTokens = Math.min(
-            this.capacity,
-            state.tokens + tokensToAdd
-        );
-
-        // Check whether the request can be served.
-        const allowed = availableTokens >= cost;
-
-        const remainingTokens = allowed
-            ? availableTokens - cost
-            : availableTokens;
-
-        // Calculate how long the client must wait if blocked.
-        const retryAfterMs = allowed
-            ? 0
-            : Math.ceil(
-                ((cost - availableTokens) / this.refillRate) * 1000
-            );
-
-        // Save the updated bucket state.
-        this.store.set(key, {
-            tokens: remainingTokens,
-            lastRefillTime: currentTime
+        return tokenBucketOperation(this.store, {
+            key,
+            capacity: this.capacity,
+            refillRate: this.refillRate,
+            cost,
+            now: currentTime
         });
-
-        return {
-            allowed,
-            limit: this.capacity,
-            remaining: Math.floor(remainingTokens),
-            retryAfterMs,
-            resetAt: Math.ceil(
-                currentTime +
-                ((this.capacity - remainingTokens) / this.refillRate) * 1000
-            )
-        };
     }
 }
 

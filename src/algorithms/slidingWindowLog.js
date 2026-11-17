@@ -1,3 +1,4 @@
+import slidingWindowLogOperation from "../stores/operations/slidingWindowLog.operation.js";
 
 class SlidingWindowLog {
     constructor({
@@ -37,58 +38,14 @@ class SlidingWindowLog {
         }
 
         const currentTime = this.now();
-        const windowStart = currentTime - this.windowMs;
-
         const key = `${clientId}:sliding-window-log`;
 
-        // Retrieve the client's previous request timestamps.
-        const storedTimestamps = this.store.get(key);
-
-        const timestamps = Array.isArray(storedTimestamps)
-            ? storedTimestamps
-            : [];
-
-        // Remove timestamps outside the rolling window.
-        const validTimestamps = timestamps.filter(
-            timestamp => timestamp > windowStart
-        );
-
-        const currentCount = validTimestamps.length;
-
-        // Check whether the client has reached the limit.
-        const allowed = currentCount < this.maxRequests;
-
-        if (allowed) {
-            validTimestamps.push(currentTime);
-        }
-
-        // Persist the updated timestamps.
-        this.store.set(key, validTimestamps);
-
-        const remaining = Math.max(
-            0,
-            this.maxRequests - validTimestamps.length
-        );
-
-        // Calculate when the next request can be accepted.
-        const retryAfterMs = allowed
-            ? 0
-            : Math.max(
-                0,
-                validTimestamps[0] + this.windowMs - currentTime
-            );
-
-        const resetAt = validTimestamps.length > 0
-            ? validTimestamps[0] + this.windowMs
-            : currentTime + this.windowMs;
-
-        return {
-            allowed,
-            limit: this.maxRequests,
-            remaining,
-            retryAfterMs,
-            resetAt
-        };
+        return slidingWindowLogOperation(this.store, {
+            key,
+            currentTime,
+            windowMs: this.windowMs,
+            maxRequests: this.maxRequests
+        });
     }
 }
 
