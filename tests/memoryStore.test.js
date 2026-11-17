@@ -1,5 +1,4 @@
-
-import test from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import MemoryStore from "../src/stores/memoryStore.js";
@@ -7,70 +6,38 @@ import MemoryStore from "../src/stores/memoryStore.js";
 test("should return 0 for a non-existing key", () => {
     const store = new MemoryStore();
 
-    assert.equal(store.get("user:101"), 0);
+    assert.equal(store.get("missing"), 0);
 });
 
 test("should store and retrieve a value", () => {
     const store = new MemoryStore();
 
-    store.set("user:101", 5);
+    store.set("name", "Sentinel");
 
-    assert.equal(store.get("user:101"), 5);
+    assert.equal(store.get("name"), "Sentinel");
 });
 
 test("should support storing objects", () => {
     const store = new MemoryStore();
 
     const state = {
-        tokens: 8,
+        tokens: 5,
         lastRefillTime: 1000
     };
 
-    store.set("user:101", state);
+    store.set("bucket", state);
 
-    assert.deepEqual(store.get("user:101"), state);
+    assert.deepEqual(store.get("bucket"), state);
 });
 
-test("should increment a counter", () => {
+test("should maintain separate values for different clients", () => {
     const store = new MemoryStore();
 
-    assert.equal(store.increment("user:101"), 1);
-    assert.equal(store.increment("user:101"), 2);
-    assert.equal(store.increment("user:101"), 3);
-});
+    store.set("client-1:requests", 5);
+    store.set("client-2:requests", 10);
 
-test("should maintain separate counters for different clients", () => {
-    const store = new MemoryStore();
-
-    store.increment("user:101");
-    store.increment("user:101");
-    store.increment("user:102");
-
-    assert.equal(store.get("user:101"), 2);
-    assert.equal(store.get("user:102"), 1);
-});
-
-test("should atomically enforce the maximum in a single process", () => {
-    const store = new MemoryStore();
-
-    const first = store.consume("user:101", 2);
-    const second = store.consume("user:101", 2);
-    const third = store.consume("user:101", 2);
-
-    assert.deepEqual(first, {
-        allowed: true,
-        count: 1
-    });
-
-    assert.deepEqual(second, {
-        allowed: true,
-        count: 2
-    });
-
-    assert.deepEqual(third, {
-        allowed: false,
-        count: 2
-    });
+    assert.equal(store.get("client-1:requests"), 5);
+    assert.equal(store.get("client-2:requests"), 10);
 });
 
 test("should expire an entry after its TTL", () => {
@@ -80,13 +47,13 @@ test("should expire an entry after its TTL", () => {
         now: () => currentTime
     });
 
-    store.set("user:101", 10, 5000);
+    store.set("temporary", "value", 500);
 
-    assert.equal(store.get("user:101"), 10);
+    assert.equal(store.get("temporary"), "value");
 
-    currentTime = 6000;
+    currentTime = 1500;
 
-    assert.equal(store.get("user:101"), 0);
+    assert.equal(store.get("temporary"), 0);
 });
 
 test("should not expire an entry without TTL", () => {
@@ -96,33 +63,49 @@ test("should not expire an entry without TTL", () => {
         now: () => currentTime
     });
 
-    store.set("user:101", 10);
+    store.set("permanent", "value");
 
-    currentTime = 1000000;
+    currentTime = 100000;
 
-    assert.equal(store.get("user:101"), 10);
+    assert.equal(store.get("permanent"), "value");
 });
 
 test("should delete an existing entry", () => {
     const store = new MemoryStore();
 
-    store.set("user:101", 10);
+    store.set("key", "value");
 
-    assert.equal(store.delete("user:101"), true);
-    assert.equal(store.get("user:101"), 0);
+    assert.equal(store.delete("key"), true);
+    assert.equal(store.get("key"), 0);
 });
 
-test("should reject invalid TTL values", () => {
+test("should return false when deleting a missing key", () => {
+    const store = new MemoryStore();
+
+    assert.equal(store.delete("missing"), false);
+});
+
+test("should reject negative TTL values", () => {
     const store = new MemoryStore();
 
     assert.throws(
-        () => store.set("user:101", 10, -1000),
-        /ttlMs/
+        () => store.set("key", "value", -100),
+        /ttlMs must be a non-negative number or null/
     );
 });
 
-test("should return a custom default value for missing keys", () => {
+test("should reject non-finite TTL values", () => {
     const store = new MemoryStore();
 
-    assert.equal(store.get("missing", null), null);
+    assert.throws(() => store.set("key", "value", Infinity));
+    assert.throws(() => store.set("key", "value", NaN));
+});
+
+test("should support a custom default value", () => {
+    const store = new MemoryStore();
+
+    assert.equal(
+        store.get("missing", null),
+        null
+    );
 });

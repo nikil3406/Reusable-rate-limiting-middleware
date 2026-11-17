@@ -1,5 +1,5 @@
 class StoreInterface {
-    get(key, defaultValue = undefined) {
+    get(key, defaultValue = 0) {
         throw new Error("get() must be implemented");
     }
 

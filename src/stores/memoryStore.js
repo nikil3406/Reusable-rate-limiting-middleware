@@ -12,7 +12,7 @@ class MemoryStore extends StoreInterface {
         this.now = now;
     }
 
-    get(key, defaultValue = undefined) {
+    get(key, defaultValue = 0) {
         const entry = this.store.get(key);
 
         if (!entry) {
