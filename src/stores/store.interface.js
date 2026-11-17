@@ -1,6 +1,5 @@
-
 class StoreInterface {
-    get(key) {
+    get(key, defaultValue = undefined) {
         throw new Error("get() must be implemented");
     }
 
@@ -10,10 +9,6 @@ class StoreInterface {
 
     delete(key) {
         throw new Error("delete() must be implemented");
-    }
-
-    atomicUpdate(operation, args = {}) {
-        throw new Error("atomicUpdate() must be implemented");
     }
 }
 

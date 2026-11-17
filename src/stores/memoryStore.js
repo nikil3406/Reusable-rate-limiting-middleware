@@ -1,15 +1,18 @@
-
 import StoreInterface from "./store.interface.js";
 
 class MemoryStore extends StoreInterface {
     constructor({ now = Date.now } = {}) {
         super();
 
+        if (typeof now !== "function") {
+            throw new Error("now must be a function");
+        }
+
         this.store = new Map();
         this.now = now;
     }
 
-    get(key, defaultValue = 0) {
+    get(key, defaultValue = undefined) {
         const entry = this.store.get(key);
 
         if (!entry) {
@@ -33,7 +36,9 @@ class MemoryStore extends StoreInterface {
             ttlMs !== null &&
             (!Number.isFinite(ttlMs) || ttlMs < 0)
         ) {
-            throw new Error("ttlMs must be a non-negative number or null");
+            throw new Error(
+                "ttlMs must be a non-negative number or null"
+            );
         }
 
         const expiresAt = ttlMs === null
@@ -48,36 +53,6 @@ class MemoryStore extends StoreInterface {
 
     delete(key) {
         return this.store.delete(key);
-    }
-
-    // Existing methods retained for compatibility.
-    increment(key) {
-        const currentCount = this.get(key);
-        const updatedCount = currentCount + 1;
-
-        this.set(key, updatedCount);
-
-        return updatedCount;
-    }
-
-    consume(key, maxRequests) {
-        const currentCount = this.get(key);
-
-        if (currentCount >= maxRequests) {
-            return {
-                allowed: false,
-                count: currentCount
-            };
-        }
-
-        const updatedCount = currentCount + 1;
-
-        this.set(key, updatedCount);
-
-        return {
-            allowed: true,
-            count: updatedCount
-        };
     }
 }
 
